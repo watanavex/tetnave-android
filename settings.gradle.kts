@@ -1,2 +1,2 @@
 rootProject.name = "tetnave"
-include ':app'
+include(":app")
