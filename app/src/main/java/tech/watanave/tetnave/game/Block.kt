@@ -20,8 +20,7 @@ data class Block(private val origin: Position, private val rotate: Rotate, priva
         )
         /*
           ■
-        ■ ■
-          ■
+        ■ ■ ■
         */
         val Pattern2 = listOf(
             (0 to -1),
@@ -38,14 +37,24 @@ data class Block(private val origin: Position, private val rotate: Rotate, priva
             (1 to 0),
             (1 to 1)
         )
+        /*
+        ■
+        ■
+        ■ ■
+        */
+        val Pattern4 = listOf(
+            (0 to -1),
+            (0 to 1),
+            (1 to 1)
+        )
     }
 
     val positions: List<Position>
         get() = listOf(origin) + when (rotate) {
             Rotate.Top -> mapPattern.map { origin.move(it.first, it.second) }
-            Rotate.Left -> mapPattern.map { origin.move(it.second, it.first) }
+            Rotate.Left -> mapPattern.map { origin.move(it.second, -it.first) }
             Rotate.Right -> mapPattern.map { origin.move(-it.second, it.first) }
-            Rotate.Bottom -> mapPattern.map { origin.move(it.first, -it.second) }
+            Rotate.Bottom -> mapPattern.map { origin.move(-it.first, -it.second) }
         }
 
     fun move(x: Int, y: Int) = copy(origin = origin.move(x, y))
