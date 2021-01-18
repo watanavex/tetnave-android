@@ -1,8 +1,10 @@
 package tech.watanave.tetnave.game
 
+import kotlin.math.absoluteValue
+
 typealias MapPattern = List<Pair<Int, Int>>
 
-data class Block(private val origin: Position, private val rotate: Rotate, private val mapPattern: MapPattern) {
+data class Block constructor(val origin: Position, val rotate: Rotate, val mapPattern: MapPattern) {
 
     enum class Rotate {
         Top, Right, Bottom, Left
@@ -59,12 +61,7 @@ data class Block(private val origin: Position, private val rotate: Rotate, priva
 
     fun move(x: Int, y: Int) = copy(origin = origin.move(x, y))
 
-    fun rotate(): Block {
-        var ordinal = rotate.ordinal + 1
-        if (Rotate.values().size <= ordinal) {
-            ordinal = 0
-        }
-        val rotate = Rotate.values()[ordinal]
+    fun rotate(rotate: Rotate): Block {
         return copy(rotate = rotate)
     }
 
