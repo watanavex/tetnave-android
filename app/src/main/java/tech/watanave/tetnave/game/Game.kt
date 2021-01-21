@@ -1,74 +1,120 @@
 package tech.watanave.tetnave.game
 
-import android.util.Log
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.flow.*
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlin.math.absoluteValue
 
+class GameService(size: Size, private val blockSpecification: BlockSpecification) {
 
-typealias GameCells = MutableList<MutableList<Game.Cell>>
-class Game {
+    val blockFlow = MutableStateFlow<Block?>(null)
+    val fieldFlow = MutableStateFlow(Field(size))
 
-    private val size = Size(width = 10, height = 20)
-    private val ticker = GameTicker()
-    private val _cells = MutableStateFlow(
-            Array(size.height) {
-                Array(size.width) { Cell.None }.toMutableList()
-            }.toMutableList()
-    )
-    val cell: StateFlow<GameCells> = _cells
-    private val _counter = MutableStateFlow(0)
-    val counter = _counter
-    private val _list = MutableStateFlow(listOf(0, 0, 0))
-    val list = _list
-    private val _unit = MutableStateFlow(Unit)
-    val unit = _unit
+    fun addNewBlock() {
+        val mapPattern = listOf(Block.Pattern1, Block.Pattern2, Block.Pattern3, Block.Pattern4).random()
+        val field = fieldFlow.value
+        val x = field.size.width / 2 - 1
+        val y = mapPattern.map { it.second }.minOrNull()!!.absoluteValue
+        val newBlock = Block(Position(x, y), Block.Rotate.Top, mapPattern)
 
-    enum class Cell {
-        Fixed, Moving, None
+        if (!blockSpecification.isSatisfied(newBlock, field)) {
+            throw Exception()
+        }
+
+        blockFlow.value = newBlock
     }
 
-    suspend fun start() {
-        ticker.tickFlow.collect {
-            val cells = _cells.value
+    fun moveBlock(x: Int, y: Int) {
+        if (y < 0) {
+            throw Exception()
+        }
 
-            loop@ for (y in 0 until cells.size) {
-                for (x in 0 until cells[y].size) {
-                    if (cells[y][x] == Cell.None) {
-                        cells[y][x] = Cell.Fixed
-                        break@loop
-                    }
+        val block = this.blockFlow.value ?: throw Exception()
+        val field = fieldFlow.value
+        val newBlock = block.move(x, y)
+
+        if (!blockSpecification.isSatisfied(newBlock, field)) {
+            throw Exception()
+        }
+
+        blockFlow.value = newBlock
+    }
+
+    fun rotateBlock() {
+        val block = this.blockFlow.value ?: throw Exception()
+        val field = fieldFlow.value
+
+        var ordinal = block.rotate.ordinal + 1
+        if (Block.Rotate.values().size <= ordinal) {
+            ordinal = 0
+        }
+        val rotate = Block.Rotate.values()[ordinal]
+        val rotatedBlock = block.rotate(rotate)
+
+        var offsetX = 0
+        var offsetY = 0
+        rotatedBlock.positions.filter { !blockSpecification.isSatisfied(it, field) }
+                .forEach { position ->
+                    offsetX = position.x - block.origin.x
+                    offsetY = position.y - block.origin.y
                 }
+
+        val newBlock = rotatedBlock.move(-offsetX, -offsetY) ?: throw Exception()
+
+        if (!blockSpecification.isSatisfied(newBlock, field)) {
+            throw Exception()
+        }
+
+        blockFlow.value = newBlock
+    }
+
+    fun fixedBlockIfNeed() {
+        val block = this.blockFlow.value ?: throw Exception()
+        val field = fieldFlow.value.copy()
+
+        val newBlock = block.move(0, 1)
+
+        if (blockSpecification.isSatisfied(newBlock, field)) {
+            return
+        }
+
+        block.positions.forEach { position ->
+            field[position] = Cell.Fixed
+        }
+
+        blockFlow.value = null
+        fieldFlow.value = field
+    }
+
+    fun flushLinesIfNeed() {
+        val field = fieldFlow.value
+
+        (0 until field.size.height).reversed().forEach { y ->
+            if (!field.cells[y].all { it == Cell.Fixed }) {
+                return@forEach
             }
-//            _counter.value = cells.flatten()
-//                .count { it != Cell.Fixed }
-//            _list.value = listOf(0, 0, 0)
-
-            val empty: GameCells = mutableListOf()
-            cells.forEach { empty.add(it) }
-
-            val check1 = listOf(1) == listOf(1)
-            val check2 = listOf(1, 2, 3) == listOf(1, 2, 4)
-            val check3 = listOf(listOf(1, 2, 3)) == listOf(listOf(1, 2, 4))
-            val check = empty == _cells.value
-            val c2 = _cells.value
-
-            _cells.value = empty
-
-//            _unit.emit(Unit)
+            field.shiftDown(y)
         }
     }
-
 }
 
-class GameTicker {
+class BlockSpecification {
 
-    val tickFlow: Flow<Unit> = flow {
-        while (true) {
-            delay(1_000L)
-            Log.w("@@@", "GameTicker Tick")
-            emit(Unit)
+    fun isSatisfied(block: Block, field: Field) : Boolean {
+        block.positions.forEach { position ->
+            if (!isSatisfied(position, field)) {
+                return false
+            }
         }
+
+        return true
     }
 
+    fun isSatisfied(position: Position, field: Field) : Boolean {
+        if (position.x < 0 || position.y < 0 || position.x >= field.size.width || position.y >= field.size.height) {
+            return false
+        }
+        if (field[position] != Cell.None) {
+            return false
+        }
+        return true
+    }
 }
