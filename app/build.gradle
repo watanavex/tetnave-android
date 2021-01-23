@@ -70,6 +70,7 @@ dependencies {
     testImplementation 'com.google.truth:truth:1.0.1'
     testImplementation 'com.google.truth.extensions:truth-java8-extension:1.0.1'
     testImplementation 'androidx.test.ext:truth:1.3.0'
+    testImplementation "io.mockk:mockk:1.10.5"
     // UI Tests
     androidTestImplementation "androidx.ui:ui-test:1.0.0-alpha05"
 }
