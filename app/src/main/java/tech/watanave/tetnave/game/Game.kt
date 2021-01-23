@@ -1,120 +1,104 @@
 package tech.watanave.tetnave.game
 
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlin.math.absoluteValue
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.*
+import javax.inject.Inject
 
-class GameService(size: Size, private val blockSpecification: BlockSpecification) {
+interface GameService {
 
-    val blockFlow = MutableStateFlow<Block?>(null)
-    val fieldFlow = MutableStateFlow(Field(size))
+    val blockFlow: MutableStateFlow<Block?>
+    val fieldFlow: MutableStateFlow<Field>
 
-    fun addNewBlock() {
-        val mapPattern = listOf(Block.Pattern1, Block.Pattern2, Block.Pattern3, Block.Pattern4).random()
-        val field = fieldFlow.value
-        val x = field.size.width / 2 - 1
-        val y = mapPattern.map { it.second }.minOrNull()!!.absoluteValue
-        val newBlock = Block(Position(x, y), Block.Rotate.Top, mapPattern)
+    fun addNewBlock()
+    fun moveBlock(x: Int, y: Int)
+    fun rotateBlock()
+    fun fixedBlockIfNeed()
+    fun flushLinesIfNeed()
 
-        if (!blockSpecification.isSatisfied(newBlock, field)) {
-            throw Exception()
-        }
-
-        blockFlow.value = newBlock
-    }
-
-    fun moveBlock(x: Int, y: Int) {
-        if (y < 0) {
-            throw Exception()
-        }
-
-        val block = this.blockFlow.value ?: throw Exception()
-        val field = fieldFlow.value
-        val newBlock = block.move(x, y)
-
-        if (!blockSpecification.isSatisfied(newBlock, field)) {
-            throw Exception()
-        }
-
-        blockFlow.value = newBlock
-    }
-
-    fun rotateBlock() {
-        val block = this.blockFlow.value ?: throw Exception()
-        val field = fieldFlow.value
-
-        var ordinal = block.rotate.ordinal + 1
-        if (Block.Rotate.values().size <= ordinal) {
-            ordinal = 0
-        }
-        val rotate = Block.Rotate.values()[ordinal]
-        val rotatedBlock = block.rotate(rotate)
-
-        var offsetX = 0
-        var offsetY = 0
-        rotatedBlock.positions.filter { !blockSpecification.isSatisfied(it, field) }
-                .forEach { position ->
-                    offsetX = position.x - block.origin.x
-                    offsetY = position.y - block.origin.y
-                }
-
-        val newBlock = rotatedBlock.move(-offsetX, -offsetY) ?: throw Exception()
-
-        if (!blockSpecification.isSatisfied(newBlock, field)) {
-            throw Exception()
-        }
-
-        blockFlow.value = newBlock
-    }
-
-    fun fixedBlockIfNeed() {
-        val block = this.blockFlow.value ?: throw Exception()
-        val field = fieldFlow.value.copy()
-
-        val newBlock = block.move(0, 1)
-
-        if (blockSpecification.isSatisfied(newBlock, field)) {
-            return
-        }
-
-        block.positions.forEach { position ->
-            field[position] = Cell.Fixed
-        }
-
-        blockFlow.value = null
-        fieldFlow.value = field
-    }
-
-    fun flushLinesIfNeed() {
-        val field = fieldFlow.value
-
-        (0 until field.size.height).reversed().forEach { y ->
-            if (!field.cells[y].all { it == Cell.Fixed }) {
-                return@forEach
-            }
-            field.shiftDown(y)
-        }
-    }
 }
 
-class BlockSpecification {
+interface GameTicker {
 
-    fun isSatisfied(block: Block, field: Field) : Boolean {
-        block.positions.forEach { position ->
-            if (!isSatisfied(position, field)) {
-                return false
+    val tickFlow: Flow<Unit>
+
+}
+
+interface Game {
+    val gameField: Flow<Array<Array<Cell>>>
+    suspend fun start()
+    fun left()
+    fun right()
+    fun down()
+    fun rotate()
+}
+
+class GameImpl @Inject constructor(private val gameService: GameService,
+                                   private val ticker: GameTicker) : Game {
+
+
+
+    override val gameField = gameService.fieldFlow.combine(gameService.blockFlow) { field, block ->
+        val state: Array<Array<Cell>> = Array(field.size.height) { y ->
+            Array(field.size.width) { x ->
+                field.cells[y][x] as Cell
             }
         }
-
-        return true
+        block?.positions?.forEach { position ->
+            state[position.y][position.x] = Cell.Moving
+        }
+        return@combine state
     }
 
-    fun isSatisfied(position: Position, field: Field) : Boolean {
-        if (position.x < 0 || position.y < 0 || position.x >= field.size.width || position.y >= field.size.height) {
-            return false
+    override suspend fun start() {
+        gameService.addNewBlock()
+
+        ticker.tickFlow.collect {
+            if (gameService.blockFlow.value == null) {
+                gameService.addNewBlock()
+                delay(200)
+                return@collect
+            }
+
+            try {
+                gameService.moveBlock(0, 1)
+            } catch (e: Exception) {
+            }
+            gameService.fixedBlockIfNeed()
+            delay(100)
+            gameService.flushLinesIfNeed()
+            delay(100)
         }
-        if (field[position] != Cell.None) {
-            return false
+    }
+
+    override fun left() {
+        try {
+            gameService.moveBlock(-1, 0)
+        } catch (e: Throwable) {
+
         }
-        return true
+    }
+
+    override fun right() {
+        try {
+            gameService.moveBlock(1, 0)
+        } catch (e: Throwable) {
+
+        }
+    }
+
+    override fun down() {
+        try {
+            gameService.moveBlock(0, 1)
+        } catch (e: Throwable) {
+
+        }
+    }
+
+    override fun rotate() {
+        try {
+            gameService.rotateBlock()
+        } catch (e: Throwable) {
+
+        }
     }
 }

@@ -1,88 +1,103 @@
 package tech.watanave.tetnave.game
 
-import android.util.Log
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.flow.*
+import kotlinx.coroutines.flow.MutableStateFlow
+import javax.inject.Inject
+import kotlin.math.absoluteValue
 
-class Game {
-
-    private val size = Size(width = 10, height = 20)
-    private val game = GameService(size, BlockSpecification())
-    private val ticker = GameTicker()
-    val gameState = game.fieldFlow.combine(game.blockFlow) { field, block ->
-        val state: Array<Array<Cell>> = Array(size.height) { y ->
-            Array(size.width) { x ->
-                field.cells[y][x] as Cell
-            }
-        }
-        block?.positions?.forEach { position ->
-            state[position.y][position.x] = Cell.Moving
-        }
-        return@combine state
-    }
-
-    suspend fun start() {
-        game.addNewBlock()
-
-        ticker.tickFlow.collect {
-            if (game.blockFlow.value == null) {
-                game.addNewBlock()
-                delay(200)
-                return@collect
-            }
-
-            try {
-                game.moveBlock(0, 1)
-            } catch (e: Exception) {
-            }
-            game.fixedBlockIfNeed()
-            delay(100)
-            game.flushLinesIfNeed()
-            delay(100)
-        }
-    }
-
-    fun left() {
-        try {
-            game.moveBlock(-1, 0)
-        } catch (e: Throwable) {
-
-        }
-    }
-
-    fun right() {
-        try {
-            game.moveBlock(1, 0)
-        } catch (e: Throwable) {
-
-        }
-    }
-
-    fun down() {
-        try {
-            game.moveBlock(0, 1)
-        } catch (e: Throwable) {
-
-        }
-    }
-
-    fun rotate() {
-        try {
-            game.rotateBlock()
-        } catch (e: Throwable) {
-
-        }
-    }
+interface GameSpecification {
+    fun isSatisfied(block: Block, field: Field) : Boolean
+    fun isSatisfied(position: Position, field: Field) : Boolean
 }
 
-class GameTicker {
+class GameServiceImpl @Inject constructor(size: Size, private val specification: GameSpecification) : GameService {
 
-    val tickFlow: Flow<Unit> = flow {
-        while (true) {
-            delay(1_000L)
-            Log.w("@@@", "GameTicker Tick")
-            emit(Unit)
+    override val blockFlow = MutableStateFlow<Block?>(null)
+    override val fieldFlow = MutableStateFlow(Field(size))
+
+    override fun addNewBlock() {
+        val mapPattern = listOf(Block.Pattern1, Block.Pattern2, Block.Pattern3, Block.Pattern4).random()
+        val field = fieldFlow.value
+        val x = field.size.width / 2 - 1
+        val y = mapPattern.map { it.second }.minOrNull()!!.absoluteValue
+        val newBlock = Block(Position(x, y), Block.Rotate.Top, mapPattern)
+
+        if (!specification.isSatisfied(newBlock, field)) {
+            throw Exception()
         }
+
+        blockFlow.value = newBlock
     }
 
+    override fun moveBlock(x: Int, y: Int) {
+        if (y < 0) {
+            throw Exception()
+        }
+
+        val block = this.blockFlow.value ?: throw Exception()
+        val field = fieldFlow.value
+        val newBlock = block.move(x, y)
+
+        if (!specification.isSatisfied(newBlock, field)) {
+            throw Exception()
+        }
+
+        blockFlow.value = newBlock
+    }
+
+    override fun rotateBlock() {
+        val block = this.blockFlow.value ?: throw Exception()
+        val field = fieldFlow.value
+
+        var ordinal = block.rotate.ordinal + 1
+        if (Block.Rotate.values().size <= ordinal) {
+            ordinal = 0
+        }
+        val rotate = Block.Rotate.values()[ordinal]
+        val rotatedBlock = block.rotate(rotate)
+
+        var offsetX = 0
+        var offsetY = 0
+        rotatedBlock.positions.filter { !specification.isSatisfied(it, field) }
+                .forEach { position ->
+                    offsetX = position.x - block.origin.x
+                    offsetY = position.y - block.origin.y
+                }
+
+        val newBlock = rotatedBlock.move(-offsetX, -offsetY)
+
+        if (!specification.isSatisfied(newBlock, field)) {
+            throw Exception()
+        }
+
+        blockFlow.value = newBlock
+    }
+
+    override fun fixedBlockIfNeed() {
+        val block = this.blockFlow.value ?: throw Exception()
+        val field = fieldFlow.value.copy()
+
+        val newBlock = block.move(0, 1)
+
+        if (specification.isSatisfied(newBlock, field)) {
+            return
+        }
+
+        block.positions.forEach { position ->
+            field[position] = Cell.Fixed
+        }
+
+        blockFlow.value = null
+        fieldFlow.value = field
+    }
+
+    override fun flushLinesIfNeed() {
+        val field = fieldFlow.value
+
+        (0 until field.size.height).reversed().forEach { y ->
+            if (!field.cells[y].all { it == Cell.Fixed }) {
+                return@forEach
+            }
+            field.shiftDown(y)
+        }
+    }
 }
