@@ -2,9 +2,11 @@ package tech.watanave.tetnave.game
 
 import com.google.common.truth.Truth
 import org.junit.Test
-import tech.watanave.tetnave.game.Block.Companion.Pattern1
-import tech.watanave.tetnave.game.Block.Companion.Pattern3
-import tech.watanave.tetnave.game.Block.Companion.Pattern4
+import tech.watanave.tetnave.domain.Block
+import tech.watanave.tetnave.domain.Block.Companion.Pattern1
+import tech.watanave.tetnave.domain.Block.Companion.Pattern3
+import tech.watanave.tetnave.domain.Block.Companion.Pattern4
+import tech.watanave.tetnave.domain.value.Position
 
 class BlockTest {
 

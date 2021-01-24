@@ -1,25 +1,30 @@
-package tech.watanave.tetnave.game
+package tech.watanave.tetnave.domain
 
-import androidx.compose.material.rememberBottomDrawerState
 import kotlinx.coroutines.flow.SharedFlow
+import tech.watanave.tetnave.domain.entity.Field
+import tech.watanave.tetnave.domain.value.Block
+import tech.watanave.tetnave.domain.value.Cell
+import tech.watanave.tetnave.domain.value.Position
+import tech.watanave.tetnave.domain.value.Size
+import tech.watanave.tetnave.service.GameUseCase
 import javax.inject.Inject
 import kotlin.math.absoluteValue
 
 interface GameSpecification {
-    fun isSatisfied(block: Block, field: Field) : Boolean
-    fun isSatisfied(position: Position, field: Field) : Boolean
+    fun isSatisfied(block: Block, field: Field): Boolean
+    fun isSatisfied(position: Position, field: Field): Boolean
 }
 
 interface GameRepository {
 
     val blockFlow: SharedFlow<Block?>
-    val fieldFlow: SharedFlow<Field>
+    val fieldFlow: SharedFlow<Field?>
 
-    suspend fun getBlock() : Block?
-    suspend fun getField() : Field?
+    fun getBlock(): Block?
+    fun getField(): Field?
 
-    suspend fun updateBlock(block: Block?)
-    suspend fun updateField(field: Field)
+    fun updateBlock(block: Block?)
+    fun updateField(field: Field)
 
 }
 
@@ -27,11 +32,11 @@ class GameUseCaseImpl @Inject constructor(private val size: Size,
                                           private val repository: GameRepository,
                                           private val specification: GameSpecification) : GameUseCase {
 
-    override suspend fun initializeField() {
+    override fun initializeField() {
         repository.updateField(Field(size))
     }
 
-    override suspend fun addNewBlock() {
+    override fun addNewBlock() {
         val mapPattern = listOf(Block.Pattern1, Block.Pattern2, Block.Pattern3, Block.Pattern4).random()
         val field = repository.getField() ?: throw IllegalStateException()
         val x = field.size.width / 2 - 1
@@ -45,7 +50,7 @@ class GameUseCaseImpl @Inject constructor(private val size: Size,
         repository.updateBlock(newBlock)
     }
 
-    override suspend fun moveBlock(x: Int, y: Int) {
+    override fun moveBlock(x: Int, y: Int) {
         if (y < 0) {
             throw Exception()
         }
@@ -61,7 +66,7 @@ class GameUseCaseImpl @Inject constructor(private val size: Size,
         repository.updateBlock(newBlock)
     }
 
-    override suspend fun rotateBlock() {
+    override fun rotateBlock() {
         val block = repository.getBlock() ?: throw Exception()
         val field = repository.getField() ?: throw IllegalStateException()
 
@@ -89,7 +94,7 @@ class GameUseCaseImpl @Inject constructor(private val size: Size,
         repository.updateBlock(newBlock)
     }
 
-    override suspend fun fixedBlockIfNeed() {
+    override fun fixedBlockIfNeed() {
         val block = repository.getBlock() ?: throw Exception()
         val newField = repository.getField()?.copy() ?: throw IllegalStateException()
 
@@ -103,11 +108,11 @@ class GameUseCaseImpl @Inject constructor(private val size: Size,
             newField[position] = Cell.Fixed
         }
 
-        repository.updateBlock(block)
+        repository.updateBlock(null)
         repository.updateField(newField)
     }
 
-    override suspend fun flushLinesIfNeed() {
+    override fun flushLinesIfNeed() {
         val newField = repository.getField()?.copy() ?: throw IllegalStateException()
 
         (0 until newField.size.height).reversed().forEach { y ->

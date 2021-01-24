@@ -1,17 +1,20 @@
-package tech.watanave.tetnave.game
+package tech.watanave.tetnave.service
 
+import android.util.Log
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.*
+import tech.watanave.tetnave.domain.value.Cell
+import tech.watanave.tetnave.domain.GameRepository
 import javax.inject.Inject
 
 interface GameUseCase {
 
-    suspend fun initializeField()
-    suspend fun addNewBlock()
-    suspend fun moveBlock(x: Int, y: Int)
-    suspend fun rotateBlock()
-    suspend fun fixedBlockIfNeed()
-    suspend fun flushLinesIfNeed()
+    fun initializeField()
+    fun addNewBlock()
+    fun moveBlock(x: Int, y: Int)
+    fun rotateBlock()
+    fun fixedBlockIfNeed()
+    fun flushLinesIfNeed()
 
 }
 
@@ -24,10 +27,10 @@ interface GameTicker {
 interface GameService {
     val gameField: Flow<Array<Array<Cell>>>
     suspend fun start()
-    suspend fun left()
-    suspend fun right()
-    suspend fun down()
-    suspend fun rotate()
+    fun left()
+    fun right()
+    fun down()
+    fun rotate()
 }
 
 class GameServiceImpl @Inject constructor(private val useCase: GameUseCase,
@@ -36,7 +39,7 @@ class GameServiceImpl @Inject constructor(private val useCase: GameUseCase,
 
 
 
-    override val gameField = repository.fieldFlow.combine(repository.blockFlow) { field, block ->
+    override val gameField = repository.fieldFlow.filterNotNull().combine(repository.blockFlow) { field, block ->
         val state: Array<Array<Cell>> = Array(field.size.height) { y ->
             Array(field.size.width) { x ->
                 field.cells[y][x] as Cell
@@ -55,12 +58,14 @@ class GameServiceImpl @Inject constructor(private val useCase: GameUseCase,
         ticker.tickFlow.collect {
             if (repository.getBlock() == null) {
                 useCase.addNewBlock()
+                Log.w("@@@", "addNewBlock")
                 delay(200)
                 return@collect
             }
 
             try {
                 useCase.moveBlock(0, 1)
+                Log.w("@@@", "moveBlock")
             } catch (e: Exception) {
             }
             useCase.fixedBlockIfNeed()
@@ -70,7 +75,7 @@ class GameServiceImpl @Inject constructor(private val useCase: GameUseCase,
         }
     }
 
-    override suspend fun left() {
+    override fun left() {
         try {
             useCase.moveBlock(-1, 0)
         } catch (e: Throwable) {
@@ -78,7 +83,7 @@ class GameServiceImpl @Inject constructor(private val useCase: GameUseCase,
         }
     }
 
-    override suspend fun right() {
+    override fun right() {
         try {
             useCase.moveBlock(1, 0)
         } catch (e: Throwable) {
@@ -86,7 +91,7 @@ class GameServiceImpl @Inject constructor(private val useCase: GameUseCase,
         }
     }
 
-    override suspend fun down() {
+    override fun down() {
         try {
             useCase.moveBlock(0, 1)
         } catch (e: Throwable) {
@@ -94,7 +99,7 @@ class GameServiceImpl @Inject constructor(private val useCase: GameUseCase,
         }
     }
 
-    override suspend fun rotate() {
+    override fun rotate() {
         try {
             useCase.rotateBlock()
         } catch (e: Throwable) {

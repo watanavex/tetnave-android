@@ -1,4 +1,4 @@
-package tech.watanave.tetnave.game
+package tech.watanave.tetnave.domain.value
 
 interface FieldCell
 interface BlockCell

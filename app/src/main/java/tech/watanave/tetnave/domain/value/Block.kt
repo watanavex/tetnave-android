@@ -1,6 +1,4 @@
-package tech.watanave.tetnave.game
-
-import kotlin.math.absoluteValue
+package tech.watanave.tetnave.domain.value
 
 typealias MapPattern = List<Pair<Int, Int>>
 

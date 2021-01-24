@@ -1,5 +1,9 @@
-package tech.watanave.tetnave.game
+package tech.watanave.tetnave.domain
 
+import tech.watanave.tetnave.domain.entity.Field
+import tech.watanave.tetnave.domain.value.Block
+import tech.watanave.tetnave.domain.value.Cell
+import tech.watanave.tetnave.domain.value.Position
 import javax.inject.Inject
 
 class GameSpecificationImpl @Inject constructor() : GameSpecification {

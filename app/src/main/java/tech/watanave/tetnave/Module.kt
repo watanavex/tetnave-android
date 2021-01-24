@@ -1,10 +1,14 @@
-package tech.watanave.tetnave.game
+package tech.watanave.tetnave
 
 import dagger.Binds
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
 import dagger.hilt.android.components.ActivityRetainedComponent
+import tech.watanave.tetnave.domain.*
+import tech.watanave.tetnave.domain.value.Size
+import tech.watanave.tetnave.repository.GameRepositoryImpl
+import tech.watanave.tetnave.service.*
 
 @Module
 @InstallIn(ActivityRetainedComponent::class)

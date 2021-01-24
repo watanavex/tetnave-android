@@ -1,4 +1,4 @@
-package tech.watanave.tetnave.game
+package tech.watanave.tetnave.domain.value
 
 data class Position(val x: Int, val y: Int) {
     fun move(x: Int, y: Int) : Position {
