@@ -20,7 +20,10 @@ interface Module {
     fun bindGameService(impl: GameServiceImpl) : GameService
 
     @Binds
-    fun bindGame(impl: GameImpl) : Game
+    fun bindGameUseCase(impl: GameUseCaseImpl) : GameUseCase
+
+    @Binds
+    fun bindGameRepository(impl: GameRepositoryImpl) : GameRepository
 
 }
 
