@@ -1,4 +1,9 @@
-package tech.watanave.tetnave.game
+package tech.watanave.tetnave.domain.entity
+
+import tech.watanave.tetnave.domain.value.Cell
+import tech.watanave.tetnave.domain.value.FieldCell
+import tech.watanave.tetnave.domain.value.Position
+import tech.watanave.tetnave.domain.value.Size
 
 class Field private constructor(val cells: Array<Array<FieldCell>>, val size: Size) {
 
